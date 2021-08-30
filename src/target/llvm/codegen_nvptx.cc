@@ -233,25 +233,28 @@ llvm::Value* CodeGenNVPTX::CreateIntrinsic(const CallNode* op) {
     llvm::Value* v0 = MakeValue(op->args[0]);
     llvm::Value* v1 = MakeValue(op->args[1]);
     if (op->args[1]->dtype.is_float()) {
+      // removed references to TVM_LLVM_VERSION >= 130 below for ROCm 4.3 build
+      // because ROCm 4.3 llvm is older than when change went into the llvm 13
+      // mainline upstream.
 #if TVM_LLVM_VERSION >= 90
-#if TVM_LLVM_VERSION >= 130
-      return builder_->CreateAtomicRMW(llvm::AtomicRMWInst::FAdd, v0, v1, llvm::MaybeAlign(),
-                                       llvm::AtomicOrdering::Monotonic);
-#else
+      //#if TVM_LLVM_VERSION >= 130
+      //      return builder_->CreateAtomicRMW(llvm::AtomicRMWInst::FAdd, v0, v1, llvm::MaybeAlign(),
+      //                                       llvm::AtomicOrdering::Monotonic);
+      //#else
       return builder_->CreateAtomicRMW(llvm::AtomicRMWInst::FAdd, v0, v1,
                                        llvm::AtomicOrdering::Monotonic);
-#endif
+      //#endif
 #else
       LOG(FATAL) << "Floating point atomic requires LLVM 9 or newer";
 #endif
     }
-#if TVM_LLVM_VERSION >= 130
-    return builder_->CreateAtomicRMW(llvm::AtomicRMWInst::Add, v0, v1, llvm::MaybeAlign(),
-                                     llvm::AtomicOrdering::Monotonic);
-#else
+    //#if TVM_LLVM_VERSION >= 130
+    //    return builder_->CreateAtomicRMW(llvm::AtomicRMWInst::Add, v0, v1, llvm::MaybeAlign(),
+    //                                     llvm::AtomicOrdering::Monotonic);
+    //#else
     return builder_->CreateAtomicRMW(llvm::AtomicRMWInst::Add, v0, v1,
                                      llvm::AtomicOrdering::Monotonic);
-#endif
+    //#endif
   }
   return CodeGenLLVM::CreateIntrinsic(op);
 }
