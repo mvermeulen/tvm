@@ -906,11 +906,14 @@ llvm::Value* CodeGenLLVM::CreateIntrinsic(const CallNode* op) {
                                                                 : llvm::Type::getVoidTy(*ctx_);
     llvm::Function* f = GetIntrinsicDecl(id, return_type, arg_type);
     ICHECK(f) << "Cannot find intrinsic declaration, possible type mismatch: "
-#if TVM_LLVM_VERSION >= 130
-              << llvm::Intrinsic::getBaseName(id).str();
-#else
+      // NOTE: Use previous source for ROCm 4.5.
+      // Reports as clang 13.0 but doesn't
+      // have the #if case below handled yet.
+      // #if TVM_LLVM_VERSION >= 130
+      //              << llvm::Intrinsic::getBaseName(id).str();
+      // #else
               << llvm::Intrinsic::getName(id, {});
-#endif
+      // #endif
     return builder_->CreateCall(f, arg_value);
   } else if (op->op.same_as(builtin::bitwise_and())) {
     return builder_->CreateAnd(MakeValue(op->args[0]), MakeValue(op->args[1]));
