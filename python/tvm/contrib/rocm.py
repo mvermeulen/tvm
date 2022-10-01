@@ -141,7 +141,7 @@ def callback_rocm_bitcode_path(rocdl_dir=None):
     bitcode_names = [
         "oclc_daz_opt_on",
         "ocml",
-//        "hc",  # dropped in ROCm 5.0
+#       "hc",  # dropped in ROCm 5.0
         "irif",  # this does not exist in rocm 3.9, drop eventually
         "ockl",
         "oclc_correctly_rounded_sqrt_off",
