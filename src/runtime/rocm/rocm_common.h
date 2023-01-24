@@ -38,6 +38,7 @@ namespace runtime {
 #define ROCM_DRIVER_CALL(x)                                                                    \
   {                                                                                            \
     hipError_t result = x;                                                                     \
+    DLOG(INFO) << "ROCM_DRIVER_CALL: " << #x;                                                  \
     if (result != hipSuccess && result != hipErrorDeinitialized) {                             \
       LOG(FATAL) << "ROCM HIP Error: " #x " failed with error: " << hipGetErrorString(result); \
     }                                                                                          \
@@ -45,6 +46,7 @@ namespace runtime {
 
 #define ROCM_CALL(func)                                              \
   {                                                                  \
+    DLOG(INFO) << "ROCM_CALL: " << #x;                               \
     hipError_t e = (func);                                           \
     ICHECK(e == hipSuccess) << "ROCM HIP: " << hipGetErrorString(e); \
   }
