@@ -141,9 +141,7 @@ def callback_rocm_bitcode_path(rocdl_dir=None):
     bitcode_names = [
         "oclc_daz_opt_on",
         "ocml",
-#        "hc",   # dropped in ROCm 5.0
         "irif",  # this does not exist in rocm 3.9, drop eventually
-#        "ockl", # dangling references
         "oclc_correctly_rounded_sqrt_off",
         "oclc_correctly_rounded_sqrt_on",
         "oclc_daz_opt_off",
@@ -158,6 +156,7 @@ def callback_rocm_bitcode_path(rocdl_dir=None):
         "oclc_unsafe_math_off",
         "oclc_unsafe_math_on",
         "oclc_wavefrontsize64_on",
+        "oclc_abi_version_500",
     ]
 
     bitcode_files = []
