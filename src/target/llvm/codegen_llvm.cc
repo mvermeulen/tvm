@@ -351,7 +351,7 @@ void CodeGenLLVM::AddFunctionInternal(const GlobalVar& gvar, const PrimFunc& f) 
 void CodeGenLLVM::Verify(int log_level=FATAL) const {
   std::string verify_errors_storage;
   llvm::raw_string_ostream verify_errors(verify_errors_storage);
-  LOG_IF(FATAL, llvm::verifyModule(*module_, &verify_errors))
+  LOG_IF(log_level, llvm::verifyModule(*module_, &verify_errors))
       << "LLVM module verification failed with the following errors: \n"
       << verify_errors.str();
 }
