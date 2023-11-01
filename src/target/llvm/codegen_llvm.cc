@@ -231,6 +231,7 @@ llvm::Function* CodeGenLLVM::DeclareFunction(const GlobalVar& gvar, const PrimFu
 }
 
 void CodeGenLLVM::AddFunction(const GlobalVar& gvar, const PrimFunc& f) {
+  LOG(INFO) << "Adding PrimFunc:\n" << f;
   this->AddFunctionInternal(gvar, f);
 }
 
