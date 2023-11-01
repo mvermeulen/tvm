@@ -348,7 +348,7 @@ void CodeGenLLVM::AddFunctionInternal(const GlobalVar& gvar, const PrimFunc& f) 
   }
 }
 
-void CodeGenLLVM::Verify() const {
+void CodeGenLLVM::Verify(int log_level=FATAL) const {
   std::string verify_errors_storage;
   llvm::raw_string_ostream verify_errors(verify_errors_storage);
   LOG_IF(FATAL, llvm::verifyModule(*module_, &verify_errors))
@@ -363,7 +363,7 @@ std::unique_ptr<llvm::Module> CodeGenLLVM::Finish() {
         << "Failed to link modules";
   }
   link_modules_.clear();
-  this->Verify();
+  this->Verify(ERROR);
   this->Optimize();
   this->Verify();
   return std::move(module_);
