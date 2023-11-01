@@ -369,7 +369,7 @@ std::unique_ptr<llvm::Module> CodeGenLLVM::Finish() {
         << "Failed to link modules";
   }
   link_modules_.clear();
-  this->Verify(TVM_LOG_LEVEL_ERROR);
+  this->Verify(TVM_LOG_LEVEL_FATAL);
   this->Optimize();
   this->Verify();
   return std::move(module_);
