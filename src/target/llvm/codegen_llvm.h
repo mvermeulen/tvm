@@ -159,6 +159,7 @@ class CodeGenLLVM : public ExprFunctor<llvm::Value*(const PrimExpr&)>,
    * \brief Validate the generated module using llvm::verifyModule
    */
   void Verify() const;
+  void PreVerify() const;
 
   /*!
    * \brief Add functions from the (unordered) range to the current module in a deterministic order.
