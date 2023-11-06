@@ -363,6 +363,7 @@ void CodeGenLLVM::PreVerify() const {
   if (llvm::verifyModule(*module_, &verify_errors)){
     std::string type_str;
     llvm::raw_string_ostream rso(type_str);
+    module_->print(rso,nullptr);
     LOG(INFO) << "LLVM module pre-verification failed with the following errors: \n" << verify_errors.str();
     LOG(INFO) << "LLVM module:\n" << rso.str();
   }
