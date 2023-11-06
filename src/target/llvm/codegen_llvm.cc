@@ -357,6 +357,14 @@ void CodeGenLLVM::Verify() const {
       << verify_errors.str();
 }
 
+void CodeGenLLVM::PreVerify() const {
+  std::string verify_errors_storage;
+  llvm::raw_string_ostream verify_errors(verify_errors_storage);
+  if (llvm::verifyModule(*module_, &verify_errors)){
+    LOG(INFO,"LLVM module pre-verification failed with the following errors: \n" << verify_errors.str());
+  }
+}
+
 std::unique_ptr<llvm::Module> CodeGenLLVM::Finish() {
   this->AddStartupFunction();
   for (size_t i = 0; i < link_modules_.size(); ++i) {
@@ -364,7 +372,7 @@ std::unique_ptr<llvm::Module> CodeGenLLVM::Finish() {
         << "Failed to link modules";
   }
   link_modules_.clear();
-  //  this->Verify();
+  this->PreVerify();
   this->Optimize();
   this->Verify();
   return std::move(module_);
