@@ -89,7 +89,7 @@ class CodeGenAMDGPU : public CodeGenLLVM {
 
   void AddFunction(const GlobalVar& gvar, const PrimFunc& f) final {
     // add function as void return value
-    LOG(INFO) << "Adding PrimFunc GPU:\n" << f;
+    DLOG(INFO) << "Adding PrimFunc GPU:\n" << f;
     CodeGenLLVM::AddFunctionInternal(gvar, f);
     function_->setCallingConv(llvm::CallingConv::AMDGPU_KERNEL);
     std::ostringstream attr;
