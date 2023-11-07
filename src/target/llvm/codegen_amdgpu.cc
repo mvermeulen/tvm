@@ -243,7 +243,7 @@ class CodeGenAMDGPU : public CodeGenLLVM {
     return CodeGenLLVM::CreateIntrinsic(op);
   }
 
-  std::unique_ptr<llvm::Module> CodeGenLLVM::Finish() {
+  std::unique_ptr<llvm::Module> Finish() {
     this->AddStartupFunction();
     for (size_t i = 0; i < link_modules_.size(); ++i) {
       ICHECK(!llvm::Linker::linkModules(*module_, std::move(link_modules_[i])))
