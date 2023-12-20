@@ -35,6 +35,7 @@
 #endif
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IRReader/IRReader.h>
+#include <llvm/Linker/Linker.h>
 #if TVM_LLVM_VERSION >= 100
 #include <llvm/Support/Alignment.h>
 #endif
@@ -254,7 +255,7 @@ class CodeGenAMDGPU : public CodeGenLLVM {
     this->Optimize();
     this->Verify();
     return std::move(module_);
-  }  
+  }
 
  protected:
   void InitTarget() final {
