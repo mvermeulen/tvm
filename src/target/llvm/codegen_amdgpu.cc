@@ -242,6 +242,20 @@ class CodeGenAMDGPU : public CodeGenLLVM {
     return CodeGenLLVM::CreateIntrinsic(op);
   }
 
+  std::unique_ptr<llvm::Module> Finish() {
+    this->AddStartupFunction();
+    for (size_t i = 0; i < link_modules_.size(); ++i) {
+      ICHECK(!llvm::Linker::linkModules(*module_, std::move(link_modules_[i])))
+	<< "Failed to link modules";
+    }
+    link_modules_.clear();
+    // Removed because verify issues coming from intrinsics.
+    // this->Verify();
+    this->Optimize();
+    this->Verify();
+    return std::move(module_);
+  }  
+
  protected:
   void InitTarget() final {
     // Maximum vector lane = float4
