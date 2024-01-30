@@ -20,7 +20,7 @@
 /*!
  * \file Use external rocblas library call.
  */
-#include "rocblas.h"
+#include "rocblas/rocblas.h"
 
 #include <dmlc/thread_local.h>
 #include <tvm/runtime/data_type.h>
