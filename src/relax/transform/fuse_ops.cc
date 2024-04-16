@@ -183,6 +183,8 @@ class GraphCreator : public ExprVisitor {
     ICHECK_NOTNULL(binding_var_node);
 
     static const Op& call_tir_op_ = Op::Get("relax.call_tir");
+    static const Op& call_tir_inplace_op_ = Op::Get("relax.call_tir_inplace");
+
     OpPatternKind pattern = OpPatternKind::kOpaque;
     Array<Expr> args = call->args;
 
@@ -191,7 +193,7 @@ class GraphCreator : public ExprVisitor {
     // - Otherwise, the pattern of the current binding variable node is set to `kOpaque`, and we
     // recurse into the call expression.
     const auto* op = call->op.as<OpNode>();
-    if (op == call_tir_op_.get()) {
+    if (op == call_tir_op_.get() || op == call_tir_inplace_op_.get()) {
       const GlobalVar& global_var = Downcast<GlobalVar>(call->args[0]);
       tir::PrimFunc func = Downcast<tir::PrimFunc>(mod_->Lookup(global_var));
 
@@ -377,7 +379,8 @@ class FunctionCreator : public ExprMutator {
    * function accordingly
    * \param binding The binding to be appended
    * \note Allowed bindings are:
-   *  - VarBinding with value being a call node calling `relax.call_tir`.
+   *  - VarBinding with value being a call node calling `relax.call_tir` or
+   *    `relax.call_tir_inplace`.
    *  - VarBinding with value being a tuple-get-item node.
    * // TODO(tvm-team): handle match shape
    */
@@ -387,7 +390,8 @@ class FunctionCreator : public ExprMutator {
 
     if (const auto* var_binding = binding.as<VarBindingNode>()) {
       if (const auto* call = var_binding->value.as<CallNode>()) {
-        if (call->op == Op::Get("relax.call_tir")) {
+        if (call->op == Op::Get("relax.call_tir") ||
+            call->op == Op::Get("relax.call_tir_inplace")) {
           // Update the name of the function.
           name_hint_ = name_hint_ + "_" + Downcast<GlobalVar>(call->args[0])->name_hint;
 
@@ -687,7 +691,8 @@ class OperatorFusor : public ExprMutator {
    * \return The new IRModule after transformation
    */
   IRModule Transform() {
-    for (const auto& [gv, func] : mod_->functions) {
+    for (const auto& gv : mod_->GetGlobalVars()) {
+      const auto& func = mod_->Lookup(gv);
       // Only visit Relax function without attr kPrimitive.
       if (func->IsInstance<relax::FunctionNode>() && !func->HasNonzeroAttr(attr::kPrimitive)) {
         auto updated_func = Downcast<Function>(VisitExpr(func));
@@ -1192,17 +1197,19 @@ class CompositeFunctionAnnotator : public ExprMutator {
 
   IRModule Run() {
     auto mod = builder_->GetContextIRModule();
-    auto all_functions = mod->functions;
-    for (const auto& entry : all_functions) {
-      if (const auto* func = entry.second.as<FunctionNode>()) {
-        if (func->GetAttr<String>(attr::kComposite).defined()) {
+    for (const auto& gv : mod->GetGlobalVars()) {
+      const auto& base_func = mod->Lookup(gv);
+      if (const auto* func = base_func.as<FunctionNode>()) {
+        if (func->GetAttr<String>(attr::kComposite).defined() ||
+            func->GetAttr<String>(attr::kCodegen).defined()) {
           continue;
         }
-        auto new_body = VisitExpr(func->body);
+
+        auto new_body = VisitWithNewScope(func->body, func->params);
         if (!new_body.same_as(func->body)) {
-          auto new_func = Function(func->params, VisitExpr(func->body), func->ret_struct_info,
-                                   func->is_pure, func->attrs, func->span);
-          builder_->UpdateFunction(entry.first, new_func);
+          auto new_func = Function(func->params, new_body, func->ret_struct_info, func->is_pure,
+                                   func->attrs, func->span);
+          builder_->UpdateFunction(gv, new_func);
         }
       }
     }
@@ -1233,10 +1240,14 @@ class CompositeFunctionAnnotator : public ExprMutator {
 
   Expr VisitExpr_(const FunctionNode* func_node) final {
     Function f_inner = Downcast<Function>(ExprMutator::VisitExpr_(func_node));
-    auto composite_name = func_node->GetAttr<String>(attr::kComposite);
+
+    if (!func_node->GetAttr<String>(attr::kComposite)) {
+      // This lambda function doesn't have `attr::kComposite`, so it
+      // was not produced by FuseOps.
+      return std::move(f_inner);
+    }
 
     f_inner = WithoutAttr(std::move(f_inner), tvm::relax::attr::kPrimitive);
-    ICHECK(composite_name);
 
     Array<Var> param_vars;
     Array<Expr> params;
@@ -1262,15 +1273,30 @@ IRModule FuseOpsByPattern(const tvm::Array<transform::FusionPattern>& patterns, 
   support::Arena arena;
   for (const auto& pattern : patterns) {
     OperatorFusor::GroupMap group_map;
-    for (const auto& entry : mod->functions) {
-      if (entry.second->IsInstance<tir::PrimFuncNode>()) {
+    for (const auto& gv : mod->GetGlobalVars()) {
+      const auto& base_func = mod->Lookup(gv);
+      if (base_func->IsInstance<tir::PrimFuncNode>()) {
         continue;
       }
+      const FunctionNode* function = base_func.as<FunctionNode>();
+      if (function->GetAttr<Integer>(attr::kPrimitive).defined() ||
+          function->GetAttr<String>(attr::kComposite).defined() ||
+          function->GetAttr<String>(attr::kCodegen).defined()) {
+        continue;
+      }
+
       auto map = PatternBasedPartitioner::Run(pattern->name, pattern->pattern,
                                               pattern->annotation_patterns,
-                                              pattern->check.value_or(nullptr), entry.second,
-                                              &arena, pattern->attrs_getter.value_or(nullptr));
-      group_map.insert(map.begin(), map.end());
+                                              pattern->check.value_or(nullptr), base_func, &arena,
+                                              pattern->attrs_getter.value_or(nullptr));
+      for (const auto& [key, value] : map) {
+        CHECK(!group_map.count(key))
+            << "ValueError: "
+            << "IRModule is invalid.  "
+            << "The object " << GetRef<ObjectRef>(key) << " appears in multiple partitions, "
+            << "which can occur when the IRModule was not single-site assignment";
+        group_map.insert({key, value});
+      }
     }
     mod = MakeGroupedFunctions(mod, group_map, /*lift_constants*/ !bind_constants);
   }
